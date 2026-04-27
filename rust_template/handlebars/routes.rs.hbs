@@ -12,4 +12,3 @@ pub fn create_router() -> Router<AppState> {
         .route("{{ this.path }}", {{ this.method }}({{ this.model_low }}::{{ this.method }}_{{ this.model_low }}))
     {{/each}}
 }
-
