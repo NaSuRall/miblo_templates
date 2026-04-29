@@ -7,9 +7,9 @@ pub struct {{ model_name_up }} {
     {{/each}}
 }
 
-/*
-#[derive(serde::Deserialize)]
-pub struct Delete{{ model_name_up }} {
-  pub id : i32 
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct {{ model_name_up }}Option {
+    {{#each fields}}
+        pub {{ name }}: Option<{{ type }}>,
+    {{/each}}
 }
-*/

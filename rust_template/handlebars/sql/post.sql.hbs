@@ -1,1 +1,10 @@
-CREATE * FROM JSP
+INSERT INTO {{ model_name }} (
+{{#each fields}}
+    {{ name }}{{#unless @last}},{{/unless}}
+{{/each}}
+)
+VALUES (
+{{#each fields}}
+    ?{{#unless @last}},{{/unless}}
+{{/each}}
+);
