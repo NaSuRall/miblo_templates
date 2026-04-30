@@ -18,6 +18,10 @@ route:
       path: "/users/delete/{user_id}"
       model: "Users"
 
+    - method: patch
+      path: "/users/patch/{user_id}"
+      model: "Users"
+
 # [ DATABASES ]
 database:
     - DB_CONNECTION: mysql

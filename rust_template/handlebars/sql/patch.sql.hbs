@@ -1,1 +1,6 @@
-PATCH * FROM JSP
+UPDATE {{ model_name }}
+SET
+    {{#each fields}}
+      {{ name}} = COALESCE(?, {{ name }}) {{#unless @last}},{{/unless}}
+    {{/each}}
+WHERE id = ? ;
