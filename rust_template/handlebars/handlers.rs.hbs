@@ -4,6 +4,7 @@ use serde_json::{Value, json};
 use crate::models::{{ handler_name }};
 use crate::models::{{ handler_name_low }}::{{ handler_name }}Option;
 
+{{#if method_get }}
 pub async fn get_{{ handler_name_low }}(State(state): State<AppState>) -> Json<Value> {
   let res = sqlx::query_file_as!({{ handler_name}}, "{{ sql_path_get }}" )
   .fetch_all(&state.db).await;
@@ -20,7 +21,9 @@ pub async fn get_{{ handler_name_low }}(State(state): State<AppState>) -> Json<V
   }
 
 }
+{{/if }}
 
+{{ #if method_post }}
 pub async fn post_{{ handler_name_low }}(State(state): State<AppState>, Json(body): Json<{{ handler_name }}Option> ) -> Json<Value> {
 
     let res = sqlx::query_file_as!(
@@ -44,7 +47,9 @@ pub async fn post_{{ handler_name_low }}(State(state): State<AppState>, Json(bod
     }
 
 }
+{{/if}}
 
+{{#if method_patch }}
 pub async fn patch_{{ handler_name_low }}(State(state): State<AppState>,Path({{ handler_name_low}}_id ): Path<i64>, Json(body): Json<{{ handler_name }}Option> ) -> Json<Value> {
 
   let res: Result<sqlx::mysql::MySqlQueryResult, sqlx::Error> = sqlx::query_file!(
@@ -69,7 +74,10 @@ pub async fn patch_{{ handler_name_low }}(State(state): State<AppState>,Path({{ 
 
 
 }
+{{/if}}
 
+
+{{#if method_delete }}
 pub async fn delete_{{ handler_name_low }}(State(state): State<AppState>, Path({{ handler_name_low }}_id ): Path<String> ) -> Json<Value> {
 
   let res = sqlx::query_file_as!({{ handler_name}}, "{{ sql_path_delete }}", {{ handler_name_low }}_id )
@@ -87,3 +95,4 @@ pub async fn delete_{{ handler_name_low }}(State(state): State<AppState>, Path({
     }))
   }
 }
+{{/if}}

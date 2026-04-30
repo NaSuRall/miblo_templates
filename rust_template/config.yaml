@@ -64,3 +64,4 @@ models:
           - name: pseudo
             type: String
             not_null: true
+      method: [get,patch,delete]
