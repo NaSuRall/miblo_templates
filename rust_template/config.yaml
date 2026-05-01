@@ -10,9 +10,9 @@ route:
       path: "/users"
       model: "Users"
 
-    - method: post
-      path: "/users/create"
-      model: "Users"
+    #- method: post
+    #  path: "/users/create"
+    #  model: "Users"
 
     - method: delete
       path: "/users/delete/{user_id}"
@@ -40,6 +40,7 @@ auth: true
 # [ MODEL ]
 models:
     - name: "Users"
+      method: [get,patch,delete]
       fields:
           - name: id
             type: Int
@@ -64,4 +65,3 @@ models:
           - name: pseudo
             type: String
             not_null: true
-      method: [get,patch,delete]
