@@ -5,7 +5,7 @@ language: rust
 template_dir: "handlebars"
 
 # [ ROUTES ]
-route:
+routes:
     - method: get
       path: "/users"
       model: "Users"
@@ -33,7 +33,7 @@ database:
 # [ SERVER ]
 server:
     - port: 4000
-    - adress: 0.0.0.0
+      address: "0.0.0.0"
 # [ CONFIGURATIONS ]
 auth: true
 
