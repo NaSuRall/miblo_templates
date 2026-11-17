@@ -1,0 +1,25 @@
+use {{crate_name}}::router;
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
+use std::{str::FromStr, time::Duration};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenvy::dotenv().ok();
+    let database_url = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "sqlite://miblo.sqlite?mode=rwc".into());
+    let options = SqliteConnectOptions::from_str(&database_url)?
+        .create_if_missing(true)
+        .foreign_keys(true)
+        .journal_mode(SqliteJournalMode::Wal)
+        .busy_timeout(Duration::from_secs(10));
+    let pool = SqlitePoolOptions::new().max_connections(5).connect_with(options).await?;
+    sqlx::migrate!("./migrations").run(&pool).await?;
+    let address = std::env::var("SERVER_ADDRESS").unwrap_or_else(|_| "127.0.0.1".into());
+    let port = std::env::var("SERVER_PORT").unwrap_or_else(|_| "{{port}}".into());
+    let listener = tokio::net::TcpListener::bind(format!("{address}:{port}")).await?;
+    println!("Server running on http://{}", listener.local_addr()?);
+    axum::serve(listener, router(pool))
+        .with_graceful_shutdown(async { let _ = tokio::signal::ctrl_c().await; })
+        .await?;
+    Ok(())
+}

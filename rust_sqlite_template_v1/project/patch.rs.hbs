@@ -1,0 +1,29 @@
+use serde::{Deserialize, Deserializer};
+
+// Missing key -> None; explicit null -> Some(None); value -> Some(Some(value)).
+// This lets PATCH clear a nullable field without touching omitted fields.
+pub fn deserialize<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Some)
+}
+
+#[cfg(test)]
+mod tests {
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    struct Patch {
+        #[serde(default, deserialize_with = "super::deserialize")]
+        title: Option<Option<String>>,
+    }
+
+    #[test]
+    fn distinguishes_omitted_null_and_value() {
+        assert_eq!(serde_json::from_str::<Patch>(r#"{}"#).unwrap().title, None);
+        assert_eq!(serde_json::from_str::<Patch>(r#"{"title":null}"#).unwrap().title, Some(None));
+        assert_eq!(serde_json::from_str::<Patch>(r#"{"title":"hello"}"#).unwrap().title, Some(Some("hello".into())));
+    }
+}

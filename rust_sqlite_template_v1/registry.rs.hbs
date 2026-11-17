@@ -1,0 +1,13 @@
+// Managed by Miblo. Register custom routes in src/lib.rs instead.
+use crate::AppState;
+use axum::Router;
+{{#each resources}}
+pub mod {{module}};
+{{/each}}
+
+pub fn router() -> Router<AppState> {
+    Router::new()
+{{#each resources}}
+        .merge({{module}}::router())
+{{/each}}
+}

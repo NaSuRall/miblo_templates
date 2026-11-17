@@ -13,12 +13,12 @@ parser.add_argument('--source', type=Path, default=Path(__file__).resolve().pare
 parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parents[1] / 'dist')
 args = parser.parse_args()
 manifest = json.loads((args.source / 'manifest.json').read_text())
-assert manifest['schema_version'] == 1 and manifest['id'] == 'rust-axum-mysql'
+assert manifest['schema_version'] == 1 and manifest['id'] in ('rust-axum-mysql', 'rust-axum-sqlite')
 version = manifest['version']
 assert version and all(c.isascii() and (c.isalnum() or c in '.-_') for c in version)
 output = args.output / ('v' + version)
 output.mkdir(parents=True, exist_ok=True)
-archive = output / 'rust-axum-mysql.tar.gz'
+archive = output / (manifest['id'] + '.tar.gz')
 files = sorted([args.source / 'manifest.json', *args.source.rglob('*.hbs')])
 buffer = io.BytesIO()
 with gzip.GzipFile(fileobj=buffer, mode='wb', mtime=0, filename='') as gz:
