@@ -5,22 +5,19 @@ and can be distributed as archives on GitHub Releases or another HTTPS server.
 
 | Directory | Database | Pack version | CLI compatibility |
 | --- | --- | --- | --- |
-| `rust_template_v1/` | MySQL | 0.1.0 | 0.2 and 0.3 |
-| `rust_sqlite_template_v1/` | SQLite | 0.2.0 | 0.3 |
+| `rust_template_v1/` | MySQL | 0.3.0 | 0.5+ |
+| `rust_sqlite_template_v1/` | SQLite | 0.3.0 | 0.5+ |
 
-Both use template format 1. Existing MySQL templates and the published v0.1.0
-assets are preserved. SQLite has its own versioned pack and does not require a
-database server: the CLI configures `.env` and the API creates its SQLite file
-and applies migrations at startup. Both packs generate models, tables and CRUD.
-
-`rust_template_v1/` contains format 1, stack `rust-axum-mysql`, version `0.1.0`.
-It targets Miblo CLI 0.2 and creates an Axum + SQLx + MySQL CRUD API without
-authentication. `rust_template/` is the legacy format and is kept for reference;
-its old configuration is not compatible with the new CLI.
+Both use template format 1 and declare the `relations` feature. They generate
+Axum + SQLx CRUD APIs with automatic integer primary keys, optional/required
+foreign keys, indexes and RESTRICT / CASCADE / SET NULL deletion rules.
+The previous MySQL v0.1.0 and SQLite v0.2.0 release assets remain immutable;
+projects pinned to them can still use CLI 0.5 and opt into the newer templates.
+`rust_template/` is the legacy format, kept for reference.
 
 ## Use the published release
 
-With Miblo CLI 0.3 installed, no local template checkout is needed:
+With Miblo CLI 0.5 installed, no local template checkout is needed:
 
 ```sh
 miblo new my-api --database sqlite
@@ -28,14 +25,21 @@ miblo new my-api --database sqlite
 ```
 
 In the full-screen `miblo` interface, create an API and choose **GitHub Releases**.
-The CLI downloads the [SQLite v0.2.0 release](https://github.com/NaSuRall/miblo_templates/releases/tag/v0.2.0)
-or [MySQL v0.1.0 release](https://github.com/NaSuRall/miblo_templates/releases/tag/v0.1.0),
-checks the archive against its SHA-256 sidecar, and caches it for subsequent use.
-An existing `MIBLO_TEMPLATE_DIR` environment variable selects a local pack in the
-direct CLI; unset it to use the default remote source.
+The CLI downloads the matching archive from the
+[v0.3.0 release](https://github.com/NaSuRall/miblo_templates/releases/tag/v0.3.0),
+checks its SHA-256 sidecar and caches it. An existing `MIBLO_TEMPLATE_DIR` selects
+a local pack in the direct CLI; unset it to use the default remote source.
 
-Template releases and the CLI crate are published separately. This release
-provides template packs; it does not publish a new crate to crates.io.
+For an existing API, press **u** in Miblo or run `miblo template update` in the
+project. Only the pack used for **future** models is updated: existing source,
+custom error handlers and applied migrations are preserved. The registry must
+remain compatible. Then add a new model and select **Ajouter une relation** in
+the fields menu, or use `group_id:int:ref=Group` in CLI fields. The target model
+must already exist; optional self references are also supported.
+
+Press **d** to inspect the real database schema and **p** to compare it with the
+declared models. Templates remain separate from the binary; CLI 0.5 is required
+for this pack's relation metadata. Template releases do not publish the crate.
 
 ## Use locally
 
@@ -54,12 +58,12 @@ python3 scripts/package.py
 python3 scripts/package.py --source rust_sqlite_template_v1
 ```
 
-The script produces deterministic files under `dist/v0.1.0/`:
+The script produces deterministic files under `dist/v0.3.0/`:
 
 - `rust-axum-mysql.tar.gz`;
 - `rust-axum-mysql.tar.gz.sha256`.
 
-With the SQLite source, it produces `dist/v0.2.0/rust-axum-sqlite.tar.gz`
+With the SQLite source, it produces `dist/v0.3.0/rust-axum-sqlite.tar.gz`
 and `rust-axum-sqlite.tar.gz.sha256` instead.
 
 The archive contains `manifest.json` and the `.hbs` files directly at its root,
@@ -76,7 +80,7 @@ script does not publish anything. Never replace the contents of a published vers
 For a custom HTTP server, keep this layout:
 
 ```text
-v0.1.0/
+v0.3.0/
   rust-axum-mysql.tar.gz
   rust-axum-mysql.tar.gz.sha256
 ```
@@ -95,7 +99,8 @@ pack and requires the exact file names listed in its `src/templates.rs`.
 
 Keep application decisions out of the template language where possible. The
 CLI supplies validated resource names, SQL types, Rust types, collection paths
-and field constraints. Templates cannot run shell commands during generation.
+and field constraints. The `relations` context supplies validated foreign-key
+fields, target tables, delete actions and deterministic index names. Templates cannot run shell commands during generation.
 
 When changing dependencies, regenerate and review `project/Cargo.lock.hbs`
 from a generated project; replace only that project's package name with the

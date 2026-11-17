@@ -49,3 +49,16 @@ miblo doctor
 ```
 
 The generated API runs independently of Miblo.
+
+## Database relations
+
+Miblo creates each table's integer primary key `id` automatically. While adding a
+new model, choose a relation to another model: it generates an integer foreign
+key, its index and SQL constraint. The database enforces missing-parent checks
+and the selected RESTRICT, CASCADE or SET NULL deletion rule; SET NULL requires
+an optional field. CRUD requests accept the foreign-key ID, without nested joins.
+Create the parent row first, then supply its ID when creating a linked row.
+
+Use `miblo` then `d` to inspect actual tables, PK/FK columns and links; `p` shows
+the declared model definitions. Apply pending migrations with `b`. Existing
+models' keys are not rewritten by adding a new model.

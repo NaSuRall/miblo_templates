@@ -4,6 +4,15 @@ use sqlx::{MySql, QueryBuilder};
 use crate::{AppState, error::ApiError};
 use super::model::{Create, Update, {{name}}};
 
+fn relation_error(error: sqlx::Error) -> ApiError {
+    if let sqlx::Error::Database(ref db) = error {
+        if db.is_foreign_key_violation() {
+            return ApiError::bad_request("Foreign key constraint: referenced row missing or still in use");
+        }
+    }
+    error.into()
+}
+
 #[derive(Deserialize)]
 pub struct Pagination {
     #[serde(default = "default_limit")]
@@ -48,7 +57,7 @@ pub async fn create(State(state): State<AppState>, Json(body): Json<Create>) -> 
 {{#each fields}}
         .bind(body.{{name}})
 {{/each}}
-        .execute(&mut *tx).await?;
+        .execute(&mut *tx).await.map_err(relation_error)?;
     let id = result.last_insert_id();
     let row = sqlx::query_as::<_, {{name}}>("SELECT * FROM `{{table}}` WHERE id = ?")
         .bind(id).fetch_one(&mut *tx).await?;
@@ -87,7 +96,7 @@ pub async fn update(State(state): State<AppState>, Path(id): Path<i64>, Json(bod
 {{/each}}
     }
     query.push(" WHERE id = ").push_bind(id);
-    query.build().execute(&mut *tx).await?;
+    query.build().execute(&mut *tx).await.map_err(relation_error)?;
     let row = sqlx::query_as::<_, {{name}}>("SELECT * FROM `{{table}}` WHERE id = ?")
         .bind(id).fetch_one(&mut *tx).await?;
     tx.commit().await?;
@@ -95,7 +104,7 @@ pub async fn update(State(state): State<AppState>, Path(id): Path<i64>, Json(bod
 }
 
 pub async fn delete(State(state): State<AppState>, Path(id): Path<i64>) -> Result<StatusCode, ApiError> {
-    let result = sqlx::query("DELETE FROM `{{table}}` WHERE id = ?").bind(id).execute(&state.db).await?;
+    let result = sqlx::query("DELETE FROM `{{table}}` WHERE id = ?").bind(id).execute(&state.db).await.map_err(relation_error)?;
     if result.rows_affected() == 0 { return Err(ApiError::not_found()); }
     Ok(StatusCode::NO_CONTENT)
 }

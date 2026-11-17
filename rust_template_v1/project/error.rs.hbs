@@ -11,6 +11,7 @@ impl ApiError {
 impl From<sqlx::Error> for ApiError {
     fn from(error: sqlx::Error) -> Self {
         if let sqlx::Error::Database(ref db) = error {
+            if db.is_foreign_key_violation() { return Self(StatusCode::CONFLICT, "Foreign key constraint: referenced row missing or still in use"); }
             if db.is_unique_violation() { return Self(StatusCode::CONFLICT, "A unique value already exists"); }
         }
         eprintln!("Database error: {error}");

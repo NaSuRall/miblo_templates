@@ -3,4 +3,8 @@ CREATE TABLE `{{table}}` (
 {{#each fields}}
     `{{name}}` {{sql_type}}{{#unless nullable}} NOT NULL{{/unless}}{{#if unique}} UNIQUE{{/if}}{{#unless @last}},{{/unless}}
 {{/each}}
+{{#each relations}}
+    , INDEX `{{index}}` (`{{field}}`)
+    , FOREIGN KEY (`{{field}}`) REFERENCES `{{table}}` (`id`) ON DELETE {{on_delete}} ON UPDATE RESTRICT
+{{/each}}
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

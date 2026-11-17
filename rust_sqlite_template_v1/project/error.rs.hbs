@@ -11,6 +11,8 @@ impl ApiError {
 impl From<sqlx::Error> for ApiError {
     fn from(error: sqlx::Error) -> Self {
         if let sqlx::Error::Database(ref db) = error {
+            // SQLite RESTRICT reports a trigger constraint (1811), unlike other FK errors.
+            if db.is_foreign_key_violation() || (db.code().as_deref() == Some("1811") && db.message() == "FOREIGN KEY constraint failed") { return Self(StatusCode::CONFLICT, "Foreign key constraint: referenced row missing or still in use"); }
             if db.is_unique_violation() { return Self(StatusCode::CONFLICT, "A unique value already exists"); }
         }
         eprintln!("Database error: {error}");
