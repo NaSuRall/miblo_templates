@@ -1,0 +1,101 @@
+use axum::{Json, extract::{Path, Query, State}, http::StatusCode};
+use serde::Deserialize;
+use sqlx::{MySql, QueryBuilder};
+use crate::{AppState, error::ApiError};
+use super::model::{Create, Update, {{name}}};
+
+#[derive(Deserialize)]
+pub struct Pagination {
+    #[serde(default = "default_limit")]
+    limit: u32,
+    #[serde(default)]
+    offset: u64,
+}
+fn default_limit() -> u32 { 20 }
+
+pub async fn list(State(state): State<AppState>, Query(page): Query<Pagination>) -> Result<Json<Vec<{{name}}>>, ApiError> {
+    if !(1..=100).contains(&page.limit) { return Err(ApiError::bad_request("limit must be between 1 and 100")); }
+    let rows = sqlx::query_as::<_, {{name}}>("SELECT * FROM `{{table}}` ORDER BY id LIMIT ? OFFSET ?")
+        .bind(page.limit).bind(page.offset).fetch_all(&state.db).await?;
+    Ok(Json(rows))
+}
+
+pub async fn get_one(State(state): State<AppState>, Path(id): Path<i64>) -> Result<Json<{{name}}>, ApiError> {
+    let row = sqlx::query_as::<_, {{name}}>("SELECT * FROM `{{table}}` WHERE id = ?")
+        .bind(id).fetch_optional(&state.db).await?.ok_or_else(ApiError::not_found)?;
+    Ok(Json(row))
+}
+
+pub async fn create(State(state): State<AppState>, Json(body): Json<Create>) -> Result<(StatusCode, Json<{{name}}>), ApiError> {
+{{#each fields}}
+{{#if string_like}}
+{{#if nullable}}
+    if let Some(value) = &body.{{name}} {
+{{else}}
+    {
+        let value = &body.{{name}};
+{{/if}}
+{{#if is_string}}
+        if value.chars().count() > 255 { return Err(ApiError::bad_request("{{name}} must not exceed 255 characters")); }
+{{else}}
+        if value.len() > 65535 { return Err(ApiError::bad_request("{{name}} must not exceed 65535 bytes")); }
+{{/if}}
+    }
+{{/if}}
+{{/each}}
+    let mut tx = state.db.begin().await?;
+    let result = sqlx::query("INSERT INTO `{{table}}` ({{#each fields}}`{{name}}`{{#unless @last}}, {{/unless}}{{/each}}) VALUES ({{#each fields}}?{{#unless @last}}, {{/unless}}{{/each}})")
+{{#each fields}}
+        .bind(body.{{name}})
+{{/each}}
+        .execute(&mut *tx).await?;
+    let id = result.last_insert_id();
+    let row = sqlx::query_as::<_, {{name}}>("SELECT * FROM `{{table}}` WHERE id = ?")
+        .bind(id).fetch_one(&mut *tx).await?;
+    tx.commit().await?;
+    Ok((StatusCode::CREATED, Json(row)))
+}
+
+pub async fn update(State(state): State<AppState>, Path(id): Path<i64>, Json(body): Json<Update>) -> Result<Json<{{name}}>, ApiError> {
+    let has_changes = false{{#each fields}} || body.{{name}}.is_some(){{/each}};
+    if !has_changes { return Err(ApiError::bad_request("Supply at least one field")); }
+{{#each fields}}
+{{#unless nullable}}
+    if matches!(body.{{name}}, Some(None)) { return Err(ApiError::bad_request("{{name}} cannot be null")); }
+{{/unless}}
+{{#if string_like}}
+    if let Some(Some(value)) = &body.{{name}} {
+{{#if is_string}}
+        if value.chars().count() > 255 { return Err(ApiError::bad_request("{{name}} must not exceed 255 characters")); }
+{{else}}
+        if value.len() > 65535 { return Err(ApiError::bad_request("{{name}} must not exceed 65535 bytes")); }
+{{/if}}
+    }
+{{/if}}
+{{/each}}
+    let mut tx = state.db.begin().await?;
+    // Lock before updating: a no-op update of an existing row still succeeds.
+    sqlx::query_scalar::<_, i64>("SELECT id FROM `{{table}}` WHERE id = ? FOR UPDATE")
+        .bind(id).fetch_optional(&mut *tx).await?.ok_or_else(ApiError::not_found)?;
+    let mut query = QueryBuilder::<MySql>::new("UPDATE `{{table}}` SET ");
+    {
+        let mut fields = query.separated(", ");
+{{#each fields}}
+        if let Some(value) = body.{{name}} {
+            fields.push("`{{name}}` = ").push_bind_unseparated(value);
+        }
+{{/each}}
+    }
+    query.push(" WHERE id = ").push_bind(id);
+    query.build().execute(&mut *tx).await?;
+    let row = sqlx::query_as::<_, {{name}}>("SELECT * FROM `{{table}}` WHERE id = ?")
+        .bind(id).fetch_one(&mut *tx).await?;
+    tx.commit().await?;
+    Ok(Json(row))
+}
+
+pub async fn delete(State(state): State<AppState>, Path(id): Path<i64>) -> Result<StatusCode, ApiError> {
+    let result = sqlx::query("DELETE FROM `{{table}}` WHERE id = ?").bind(id).execute(&state.db).await?;
+    if result.rows_affected() == 0 { return Err(ApiError::not_found()); }
+    Ok(StatusCode::NO_CONTENT)
+}

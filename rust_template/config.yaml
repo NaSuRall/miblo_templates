@@ -25,11 +25,11 @@ routes:
 # [ DATABASES ]
 database:
     - db_connexion: mysql
-      db_host: 100.120.71.76
+      db_host: 127.0.0.1
       db_port: 3306
-      db_database: miblo_test
-      db_username: askeet
-      db_password: Romain2024!
+      db_database: miblo_dev
+      db_username: miblo
+      db_password: CHANGE_ME
 # [ SERVER ]
 server:
     - port: 4000

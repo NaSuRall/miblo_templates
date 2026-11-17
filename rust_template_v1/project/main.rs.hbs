@@ -1,0 +1,19 @@
+use {{crate_name}}::router;
+use sqlx::mysql::MySqlPoolOptions;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenvy::dotenv().ok();
+    let database_url = std::env::var("DATABASE_URL")
+        .map_err(|_| "Set DATABASE_URL or copy .env.example to .env and configure MySQL")?;
+    let pool = MySqlPoolOptions::new().max_connections(10).connect(&database_url).await?;
+    sqlx::migrate!("./migrations").run(&pool).await?;
+    let address = std::env::var("SERVER_ADDRESS").unwrap_or_else(|_| "127.0.0.1".into());
+    let port = std::env::var("SERVER_PORT").unwrap_or_else(|_| "{{port}}".into());
+    let listener = tokio::net::TcpListener::bind(format!("{address}:{port}")).await?;
+    println!("Server running on http://{}", listener.local_addr()?);
+    axum::serve(listener, router(pool))
+        .with_graceful_shutdown(async { let _ = tokio::signal::ctrl_c().await; })
+        .await?;
+    Ok(())
+}

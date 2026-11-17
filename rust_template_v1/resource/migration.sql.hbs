@@ -1,0 +1,6 @@
+CREATE TABLE `{{table}}` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+{{#each fields}}
+    `{{name}}` {{sql_type}}{{#unless nullable}} NOT NULL{{/unless}}{{#if unique}} UNIQUE{{/if}}{{#unless @last}},{{/unless}}
+{{/each}}
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
