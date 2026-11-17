@@ -1,0 +1,20 @@
+//! Configuration du serveur, lue une fois au démarrage depuis .env et l'environnement.
+
+pub struct Config {
+    pub database_url: String,
+    pub server_address: String,
+    pub server_port: u16,
+}
+
+impl Config {
+    pub fn from_env() -> Result<Self, Box<dyn std::error::Error>> {
+        dotenvy::dotenv().ok();
+        let database_url = std::env::var("DATABASE_URL").map_err(|_| "Set DATABASE_URL or configure .env for MySQL")?;
+        let server_address = std::env::var("SERVER_ADDRESS")
+            .unwrap_or_else(|_| "127.0.0.1".into());
+        let server_port = std::env::var("SERVER_PORT")
+            .unwrap_or_else(|_| "{{port}}".into())
+            .parse::<u16>()?;
+        Ok(Self { database_url, server_address, server_port })
+    }
+}

@@ -1,0 +1,11 @@
+//! {{path}} — point d’entrée de la route personnalisée.
+pub mod handlers;
+{{#unless action_handler}}pub mod requests;
+pub mod service;{{/unless}}
+
+use crate::AppState;
+use axum::{Router, routing::{{method}}};
+
+pub fn router() -> Router<AppState> {
+    Router::new().route("{{path}}", {{method}}(handlers::{{name}}))
+}

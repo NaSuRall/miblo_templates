@@ -5,6 +5,8 @@ and can be distributed as archives on GitHub Releases or another HTTPS server.
 
 | Directory | Database | Pack version | CLI compatibility |
 | --- | --- | --- | --- |
+| `rust_template_v4/` | MySQL | 0.6.0 | 0.9+ |
+| `rust_sqlite_template_v4/` | SQLite | 0.6.0 | 0.9+ |
 | `rust_template_v3/` | MySQL | 0.5.0 | 0.8+ |
 | `rust_sqlite_template_v3/` | SQLite | 0.5.0 | 0.8+ |
 | `rust_template_v2/` | MySQL | 0.4.0 | 0.7+ |
@@ -12,7 +14,7 @@ and can be distributed as archives on GitHub Releases or another HTTPS server.
 | `rust_template_v1/` | MySQL | 0.3.0 | 0.5+ |
 | `rust_sqlite_template_v1/` | SQLite | 0.3.0 | 0.5+ |
 
-The current packs use format 3 and declare `relations`, `layered-resources` and `custom-routes`.
+The current packs use format 3 and declare `relations`, `layered-resources`, `custom-routes` and `model-routes`.
 Format 1 and 2 packs are kept unchanged for existing projects. They generate
 Axum + SQLx CRUD APIs with automatic integer primary keys, optional/required
 foreign keys, indexes and RESTRICT / CASCADE / SET NULL deletion rules.
@@ -22,7 +24,7 @@ projects pinned to them can still use CLI 0.5 and opt into the newer templates.
 
 ## Use the published release
 
-With Miblo CLI 0.8 installed, no local template checkout is needed:
+With Miblo CLI 0.9 installed, no local template checkout is needed:
 
 ```sh
 miblo new my-api --database sqlite
@@ -31,19 +33,19 @@ miblo new my-api --database sqlite
 
 In the full-screen `miblo` interface, create an API and choose **GitHub Releases**.
 The CLI downloads the matching archive from the
-[v0.5.0 release](https://github.com/NaSuRall/miblo_templates/releases/tag/v0.5.0),
+[v0.6.0 release](https://github.com/NaSuRall/miblo_templates/releases/tag/v0.6.0),
 checks its SHA-256 sidecar and caches it. An existing `MIBLO_TEMPLATE_DIR` selects
 a local pack in the direct CLI; unset it to use the default remote source.
 
 For an existing API, press **u** in Miblo or run `miblo template update` in the
-project. Only the pack used for **future** models is updated (existing models keep their original pack for later edits): existing source,
+project. Only the pack used for **future** models and routes is updated (existing models keep their original pack for later edits): existing source,
 custom error handlers and applied migrations are preserved. The registry must
 remain compatible. Then add a new model and select **Ajouter une relation** in
 the fields menu, or use `group_id:int:ref=Group` in CLI fields. The target model
 must already exist; optional self references are also supported.
 
 Press **d** to inspect the real database schema and **p** to compare it with the
-declared models. Templates remain separate from the binary; CLI 0.8 is required
+declared models. Templates remain separate from the binary; CLI 0.9 is required
 for the format-3 layout. Template releases do not publish the crate.
 
 ## Readable generated applications
@@ -64,8 +66,8 @@ All generated Rust is formatted before writing. The comments and practical READM
 are in French, with customization guidance, curl examples and migration commands.
 The application runs independently with Cargo after generation.
 
-The new format is explicit so older CLIs reject it instead of silently omitting
-modules. Existing format-1 sources and released assets are unchanged. Miblo 0.8
+The current packs keep format 3 and add the `model-routes` capability, which
+requires CLI 0.9. Existing sources and released assets are unchanged. Miblo 0.9
 can use all three formats, including both layouts in a single project after a template
 update; it remembers the template for each model.
 
@@ -75,7 +77,7 @@ With both repositories next to one another:
 
 ```sh
 cd ../Miblo
-cargo run -- new demo-api --database mysql --template-dir ../miblo_templates/rust_template_v3
+cargo run -- new demo-api --database mysql --template-dir ../miblo_templates/rust_template_v4
 ```
 
 ## Build a release archive
@@ -83,15 +85,15 @@ cargo run -- new demo-api --database mysql --template-dir ../miblo_templates/rus
 ```sh
 python3 scripts/package.py
 # SQLite:
-python3 scripts/package.py --source rust_sqlite_template_v3
+python3 scripts/package.py --source rust_sqlite_template_v4
 ```
 
-The script produces deterministic files under `dist/v0.5.0/`:
+The script produces deterministic files under `dist/v0.6.0/`:
 
 - `rust-axum-mysql.tar.gz`;
 - `rust-axum-mysql.tar.gz.sha256`.
 
-With the SQLite source, it produces `dist/v0.5.0/rust-axum-sqlite.tar.gz`
+With the SQLite source, it produces `dist/v0.6.0/rust-axum-sqlite.tar.gz`
 and `rust-axum-sqlite.tar.gz.sha256` instead.
 
 The archive contains `manifest.json` and the `.hbs` files directly at its root,
@@ -108,7 +110,7 @@ script does not publish anything. Never replace the contents of a published vers
 For a custom HTTP server, keep this layout:
 
 ```text
-v0.5.0/
+v0.6.0/
   rust-axum-mysql.tar.gz
   rust-axum-mysql.tar.gz.sha256
 ```
@@ -144,7 +146,7 @@ From the CLI repository, run:
 cargo build --locked
 python3 scripts/smoke_mysql.py \
   --miblo target/debug/miblo \
-  --templates ../miblo_templates/rust_template_v3
+  --templates ../miblo_templates/rust_template_v4
 ```
 
 The script uses an isolated temporary MySQL instance, tests real HTTP CRUD,
@@ -172,3 +174,22 @@ Les packs `rust_template_v3` et `rust_sqlite_template_v3` ajoutent la fonctionna
 et quatre fichiers par route : module, handler HTTP, paramètres et service métier.
 Le service répond 501 jusqu’à son implémentation. Aucun changement SQL n’est généré.
 Les dossiers v1 (0.3.0) et v2 (0.4.0) restent inchangés pour les projets épinglés.
+
+### Routes CRUD liées aux modèles (0.6.0, format 3)
+
+Les nouveaux dossiers `rust_template_v4` et `rust_sqlite_template_v4` déclarent
+la fonctionnalité `model-routes`. Ils conservent le format d’archive 3.
+Miblo 0.9 permet de choisir un modèle et une action CRUD, avec méthode HTTP et
+contrat JSON déduits. La route génère un module et un alias vers le handler du
+modèle : ses validations et ses requêtes SQL sont ainsi réutilisées, y compris
+pour les anciens modèles. Aucun code du modèle, aucune migration n’est réécrit.
+
+Les routes à logique personnalisée conservent leurs quatre fichiers et leur
+réponse initiale 501. Les packs 0.5.0 publiés restent inchangés.
+
+```sh
+python3 scripts/package.py --source rust_template_v4
+python3 scripts/package.py --source rust_sqlite_template_v4
+```
+
+Les archives et leurs sommes SHA-256 se trouvent dans `dist/v0.6.0/`.

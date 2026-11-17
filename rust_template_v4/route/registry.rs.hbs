@@ -1,0 +1,14 @@
+// Registre géré par Miblo. Complétez les handlers et services de chaque route.
+use crate::AppState;
+use axum::Router;
+pub mod error;
+{{#each routes}}
+pub mod {{name}};
+{{/each}}
+
+pub fn router() -> Router<AppState> {
+    Router::new()
+{{#each routes}}
+        .merge({{name}}::router())
+{{/each}}
+}

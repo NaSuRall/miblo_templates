@@ -1,0 +1,25 @@
+use crate::error::ApiError;
+use axum::{Json, http::StatusCode, response::{IntoResponse, Response}};
+use serde_json::json;
+
+pub enum RouteError {
+    NotImplemented,
+    Api(ApiError),
+}
+
+impl From<ApiError> for RouteError {
+    fn from(error: ApiError) -> Self { Self::Api(error) }
+}
+
+impl From<sqlx::Error> for RouteError {
+    fn from(error: sqlx::Error) -> Self { Self::Api(error.into()) }
+}
+
+impl IntoResponse for RouteError {
+    fn into_response(self) -> Response {
+        match self {
+            Self::NotImplemented => (StatusCode::NOT_IMPLEMENTED, Json(json!({"error": "Route not implemented"}))).into_response(),
+            Self::Api(error) => error.into_response(),
+        }
+    }
+}

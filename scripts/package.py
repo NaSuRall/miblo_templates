@@ -9,7 +9,7 @@ from pathlib import Path
 import tarfile
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--source', type=Path, default=Path(__file__).resolve().parents[1] / 'rust_template_v3')
+parser.add_argument('--source', type=Path, default=Path(__file__).resolve().parents[1] / 'rust_template_v4')
 parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parents[1] / 'dist')
 args = parser.parse_args()
 manifest = json.loads((args.source / 'manifest.json').read_text())

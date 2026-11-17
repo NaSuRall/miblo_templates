@@ -1,0 +1,13 @@
+use axum::{body::Body, http::{Request, StatusCode}};
+use tower::ServiceExt;
+
+#[tokio::test]
+async fn health_does_not_require_a_database_connection() {
+    let pool = sqlx::sqlite::SqlitePoolOptions::new()
+        .connect_lazy("sqlite::memory:")
+        .unwrap();
+    let response = {{crate_name}}::router(pool)
+        .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
+        .await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+}

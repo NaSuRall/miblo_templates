@@ -1,0 +1,22 @@
+{{#if action_handler}}//! Cette route réutilise le CRUD de {{resource_module}}.
+//! Ses champs, validations, règles métier et requêtes SQL restent ceux du modèle.
+//! Les évolutions du modèle sont donc prises en compte ici automatiquement.
+pub use crate::resources::{{resource_module}}::handlers::{{action_handler}} as {{name}};
+{{else}}use crate::{AppState, resources::custom_routes::error::RouteError};
+use super::{requests::QueryParams, service};
+{{#if parameters}}use super::requests::PathParams;
+use axum::extract::Path;
+{{/if}}
+use axum::{Json, extract::{State, Query}};
+use serde_json::Value;
+
+// Adaptation HTTP : la logique de cette route se trouve dans service.rs.
+pub async fn {{name}}(
+    State(state): State<AppState>,
+{{#if parameters}}    Path(params): Path<PathParams>,
+{{/if}}    Query(query): Query<QueryParams>,
+{{#if json_body}}    Json(body): Json<Value>,
+{{/if}}) -> Result<Json<Value>, RouteError> {
+    service::{{name}}(&state.db, {{#if parameters}}params, {{/if}}query{{#if json_body}}, body{{/if}}).await.map(Json)
+}
+{{/if}}

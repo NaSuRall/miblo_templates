@@ -1,0 +1,27 @@
+use axum::{Json, http::StatusCode, response::{IntoResponse, Response}};
+use serde_json::json;
+
+pub struct ApiError(StatusCode, &'static str);
+
+impl ApiError {
+    pub fn bad_request(message: &'static str) -> Self { Self(StatusCode::BAD_REQUEST, message) }
+    pub fn not_found() -> Self { Self(StatusCode::NOT_FOUND, "Resource not found") }
+}
+
+impl From<sqlx::Error> for ApiError {
+    fn from(error: sqlx::Error) -> Self {
+        if let sqlx::Error::Database(ref db) = error {
+            // SQLite signale RESTRICT avec le code de contrainte de déclencheur 1811.
+            if db.is_foreign_key_violation() || (db.code().as_deref() == Some("1811") && db.message() == "FOREIGN KEY constraint failed") { return Self(StatusCode::CONFLICT, "Foreign key constraint: referenced row missing or still in use"); }
+            if db.is_unique_violation() { return Self(StatusCode::CONFLICT, "A unique value already exists"); }
+        }
+        eprintln!("Database error: {error}");
+        Self(StatusCode::INTERNAL_SERVER_ERROR, "Internal server error")
+    }
+}
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        (self.0, Json(json!({"error": self.1}))).into_response()
+    }
+}
