@@ -1,0 +1,109 @@
+//! Corps JSON et paramètres acceptés par les routes de {{name}}.
+//! La validation ne lit pas la base ; les règles métier se placent dans service.rs.
+
+use serde::Deserialize;
+use crate::error::ApiError;
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Create{{name}} {
+{{#each fields}}
+    pub {{name}}: {{#if nullable}}Option<{{rust_type}}>{{else}}{{rust_type}}{{/if}},
+{{/each}}
+}
+
+impl Create{{name}} {
+    pub fn validate(&self) -> Result<(), ApiError> {
+{{#each fields}}
+{{#if string_like}}
+{{#if nullable}}
+        if let Some(value) = &self.{{name}}
+            && {{#if is_string}}value.chars().count() > 255{{else}}value.len() > 65535{{/if}}
+{{else}}
+        if {{#if is_string}}self.{{name}}.chars().count() > 255{{else}}self.{{name}}.len() > 65535{{/if}}
+{{/if}}
+        {
+            return Err(ApiError::bad_request("{{name}} must not exceed {{#if is_string}}255 characters{{else}}65535 bytes{{/if}}"));
+        }
+{{/if}}
+{{/each}}
+        Ok(())
+    }
+}
+
+/// PATCH : None = champ absent, Some(None) = null, Some(Some(v)) = nouvelle valeur.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Update{{name}} {
+{{#each fields}}
+    #[serde(default, deserialize_with = "crate::patch::deserialize")]
+    pub {{name}}: Option<Option<{{rust_type}}>>,
+{{/each}}
+}
+
+impl Update{{name}} {
+    pub fn validate(&self) -> Result<(), ApiError> {
+        if {{#each fields}}self.{{name}}.is_none(){{#unless @last}} && {{/unless}}{{/each}} {
+            return Err(ApiError::bad_request("Supply at least one field"));
+        }
+{{#each fields}}
+{{#unless nullable}}
+        if matches!(self.{{name}}, Some(None)) {
+            return Err(ApiError::bad_request("{{name}} cannot be null"));
+        }
+{{/unless}}
+{{#if string_like}}
+        if let Some(Some(value)) = &self.{{name}}
+            && {{#if is_string}}value.chars().count() > 255{{else}}value.len() > 65535{{/if}}
+        {
+            return Err(ApiError::bad_request("{{name}} must not exceed {{#if is_string}}255 characters{{else}}65535 bytes{{/if}}"));
+        }
+{{/if}}
+{{/each}}
+        Ok(())
+    }
+}
+
+/// Exemple : {{path}}?limit=20&offset=0.
+#[derive(Deserialize)]
+pub struct ListQuery {
+    #[serde(default = "default_limit")]
+    pub limit: u32,
+    #[serde(default)]
+    pub offset: u64,
+}
+
+fn default_limit() -> u32 {
+    20
+}
+
+impl ListQuery {
+    pub fn validate(&self) -> Result<(), ApiError> {
+        if !(1..=100).contains(&self.limit) {
+            return Err(ApiError::bad_request("limit must be between 1 and 100"));
+        }
+        if self.offset > i64::MAX as u64 {
+            return Err(ApiError::bad_request("offset is too large"));
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_an_empty_patch() {
+        let update: Update{{name}} = serde_json::from_str("{}").unwrap();
+        assert!(update.validate().is_err());
+    }
+
+    #[test]
+    fn pagination_is_bounded() {
+        assert!(ListQuery { limit: 20, offset: 0 }.validate().is_ok());
+        assert!(ListQuery { limit: 0, offset: 0 }.validate().is_err());
+        assert!(ListQuery { limit: 101, offset: 0 }.validate().is_err());
+        assert!(ListQuery { limit: 20, offset: u64::MAX }.validate().is_err());
+    }
+}

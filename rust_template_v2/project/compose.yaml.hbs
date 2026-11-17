@@ -1,0 +1,19 @@
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: miblo_dev
+      MYSQL_USER: miblo
+      MYSQL_PASSWORD: miblo_dev_only
+      MYSQL_ROOT_PASSWORD: root_dev_only
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+volumes:
+  mysql_data:

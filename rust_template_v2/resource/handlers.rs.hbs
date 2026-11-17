@@ -1,0 +1,46 @@
+//! Adaptateurs HTTP : extraire la requête, appeler le service, répondre en JSON.
+
+use axum::{extract::{Path, Query, State}, http::StatusCode, Json};
+use crate::{error::ApiError, AppState};
+use super::{model::{{name}}, requests::{Create{{name}}, Update{{name}}, ListQuery}, service};
+
+pub async fn list(
+    State(state): State<AppState>,
+    Query(query): Query<ListQuery>,
+) -> Result<Json<Vec<{{name}}>>, ApiError> {
+    let records = service::list(&state.db, query).await?;
+    Ok(Json(records))
+}
+
+pub async fn get_one(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> Result<Json<{{name}}>, ApiError> {
+    let record = service::get_one(&state.db, id).await?;
+    Ok(Json(record))
+}
+
+pub async fn create(
+    State(state): State<AppState>,
+    Json(request): Json<Create{{name}}>,
+) -> Result<(StatusCode, Json<{{name}}>), ApiError> {
+    let record = service::create(&state.db, request).await?;
+    Ok((StatusCode::CREATED, Json(record)))
+}
+
+pub async fn update(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    Json(request): Json<Update{{name}}>,
+) -> Result<Json<{{name}}>, ApiError> {
+    let record = service::update(&state.db, id, request).await?;
+    Ok(Json(record))
+}
+
+pub async fn delete(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> Result<StatusCode, ApiError> {
+    service::delete(&state.db, id).await?;
+    Ok(StatusCode::NO_CONTENT)
+}

@@ -1,0 +1,102 @@
+//! Requêtes SQL de la table `{{table}}`.
+//! Les valeurs sont liées avec bind ; elles ne sont jamais interpolées dans le SQL.
+
+use sqlx::{MySql, MySqlPool, QueryBuilder};
+use crate::error::ApiError;
+use super::{model::{{name}}, requests::{Create{{name}}, Update{{name}}}};
+
+pub async fn list(pool: &MySqlPool, limit: u32, offset: u64) -> Result<Vec<{{name}}>, ApiError> {
+    let offset = i64::try_from(offset).map_err(|_| ApiError::bad_request("offset is too large"))?;
+    let records = sqlx::query_as::<_, {{name}}>(
+        "SELECT * FROM `{{table}}` ORDER BY id LIMIT ? OFFSET ?",
+    )
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+    Ok(records)
+}
+
+pub async fn get_one(pool: &MySqlPool, id: i64) -> Result<{{name}}, ApiError> {
+    sqlx::query_as::<_, {{name}}>("SELECT * FROM `{{table}}` WHERE id = ?")
+        .bind(id)
+        .fetch_optional(pool)
+        .await?
+        .ok_or_else(ApiError::not_found)
+}
+
+pub async fn create(pool: &MySqlPool, request: Create{{name}}) -> Result<{{name}}, ApiError> {
+    let mut transaction = pool.begin().await?;
+    let result = sqlx::query(
+        "INSERT INTO `{{table}}` (
+{{#each fields}}
+            `{{name}}`{{#unless @last}},{{/unless}}
+{{/each}}
+        ) VALUES ({{#each fields}}?{{#unless @last}}, {{/unless}}{{/each}})",
+    )
+{{#each fields}}
+    .bind(request.{{name}})
+{{/each}}
+    .execute(&mut *transaction)
+    .await
+    .map_err(database_error)?;
+    let id = result.last_insert_id();
+    let record = sqlx::query_as::<_, {{name}}>("SELECT * FROM `{{table}}` WHERE id = ?")
+        .bind(id)
+        .fetch_one(&mut *transaction)
+        .await?;
+    transaction.commit().await?;
+    Ok(record)
+}
+
+pub async fn update(pool: &MySqlPool, id: i64, request: Update{{name}}) -> Result<{{name}}, ApiError> {
+    let mut transaction = pool.begin().await?;
+    // Verrouiller la ligne avant l'écriture garantit aussi le succès d'un PATCH sans changement de valeur.
+    sqlx::query_scalar::<_, i64>("SELECT id FROM `{{table}}` WHERE id = ? FOR UPDATE")
+        .bind(id)
+        .fetch_optional(&mut *transaction)
+        .await?
+        .ok_or_else(ApiError::not_found)?;
+
+    let mut query = QueryBuilder::<MySql>::new("UPDATE `{{table}}` SET ");
+    {
+        let mut columns = query.separated(", ");
+{{#each fields}}
+        if let Some(value) = request.{{name}} {
+            columns.push("`{{name}}` = ").push_bind_unseparated(value);
+        }
+{{/each}}
+    }
+    query.push(" WHERE id = ").push_bind(id);
+    query.build().execute(&mut *transaction).await.map_err(database_error)?;
+
+    let record = sqlx::query_as::<_, {{name}}>("SELECT * FROM `{{table}}` WHERE id = ?")
+        .bind(id)
+        .fetch_one(&mut *transaction)
+        .await?;
+    transaction.commit().await?;
+    Ok(record)
+}
+
+pub async fn delete(pool: &MySqlPool, id: i64) -> Result<(), ApiError> {
+    let result = sqlx::query("DELETE FROM `{{table}}` WHERE id = ?")
+        .bind(id)
+        .execute(pool)
+        .await
+        .map_err(database_error)?;
+    if result.rows_affected() == 0 {
+        return Err(ApiError::not_found());
+    }
+    Ok(())
+}
+
+fn database_error(error: sqlx::Error) -> ApiError {
+    match &error {
+        sqlx::Error::Database(database)
+            if database.is_foreign_key_violation() =>
+        {
+            ApiError::bad_request("Foreign key constraint: referenced row missing or still in use")
+        }
+        _ => error.into(),
+    }
+}

@@ -1,0 +1,30 @@
+//! Règles métier de {{name}} : c'est ici que vous personnalisez le comportement.
+//! Ces fonctions restent stables quand Miblo ajoute des champs au modèle.
+
+use sqlx::MySqlPool;
+use crate::error::ApiError;
+use super::{model::{{name}}, repository, requests::{Create{{name}}, Update{{name}}, ListQuery}};
+
+pub async fn list(pool: &MySqlPool, query: ListQuery) -> Result<Vec<{{name}}>, ApiError> {
+    query.validate()?;
+    repository::list(pool, query.limit, query.offset).await
+}
+
+pub async fn get_one(pool: &MySqlPool, id: i64) -> Result<{{name}}, ApiError> {
+    repository::get_one(pool, id).await
+}
+
+pub async fn create(pool: &MySqlPool, request: Create{{name}}) -> Result<{{name}}, ApiError> {
+    request.validate()?;
+    // Ajoutez ici vos règles métier avant l'enregistrement.
+    repository::create(pool, request).await
+}
+
+pub async fn update(pool: &MySqlPool, id: i64, request: Update{{name}}) -> Result<{{name}}, ApiError> {
+    request.validate()?;
+    repository::update(pool, id, request).await
+}
+
+pub async fn delete(pool: &MySqlPool, id: i64) -> Result<(), ApiError> {
+    repository::delete(pool, id).await
+}

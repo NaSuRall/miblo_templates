@@ -1,0 +1,15 @@
+//! Données de la table `{{table}}`, renvoyées par l'API.
+//! Les champs privés restent accessibles en Rust mais sont absents du JSON.
+
+use serde::Serialize;
+
+#[derive(Debug, Serialize, sqlx::FromRow)]
+pub struct {{name}} {
+    pub id: i64,
+{{#each fields}}
+{{#if private}}
+    #[serde(skip_serializing)]
+{{/if}}
+    pub {{name}}: {{#if nullable}}Option<{{rust_type}}>{{else}}{{rust_type}}{{/if}},
+{{/each}}
+}

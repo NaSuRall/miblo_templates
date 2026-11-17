@@ -1,0 +1,27 @@
+//! Assemblage de l’API. Ajoutez ici les routes transversales de votre application.
+
+pub mod config;
+pub mod database;
+pub mod error;
+pub mod patch;
+pub mod resources;
+
+use axum::{Json, Router, routing::get};
+use serde_json::{Value, json};
+
+#[derive(Clone)]
+pub struct AppState {
+    pub db: sqlx::SqlitePool,
+}
+
+pub fn router(db: sqlx::SqlitePool) -> Router {
+    Router::new()
+        .route("/health", get(health))
+        .merge(resources::router())
+        // Ajoutez vos routes personnalisées ici ; Miblo préserve ce fichier.
+        .with_state(AppState { db })
+}
+
+async fn health() -> Json<Value> {
+    Json(json!({"status": "ok"}))
+}
