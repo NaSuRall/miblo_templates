@@ -9,11 +9,11 @@ from pathlib import Path
 import tarfile
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--source', type=Path, default=Path(__file__).resolve().parents[1] / 'rust_template_v2')
+parser.add_argument('--source', type=Path, default=Path(__file__).resolve().parents[1] / 'rust_template_v3')
 parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parents[1] / 'dist')
 args = parser.parse_args()
 manifest = json.loads((args.source / 'manifest.json').read_text())
-assert manifest['schema_version'] in (1, 2) and manifest['id'] in ('rust-axum-mysql', 'rust-axum-sqlite')
+assert manifest['schema_version'] in (1, 2, 3) and manifest['id'] in ('rust-axum-mysql', 'rust-axum-sqlite')
 version = manifest['version']
 assert version and all(c.isascii() and (c.isalnum() or c in '.-_') for c in version)
 output = args.output / ('v' + version)

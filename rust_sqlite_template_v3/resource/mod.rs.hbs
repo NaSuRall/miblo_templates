@@ -1,0 +1,20 @@
+//! Routes HTTP du modèle {{name}}.
+//! Parcours d'une requête : handlers → service → repository.
+
+pub mod handlers;
+pub mod model;
+pub mod requests;
+pub mod service;
+mod repository;
+
+use axum::{routing::get, Router};
+use crate::AppState;
+
+pub fn router() -> Router<AppState> {
+    Router::new()
+        .route("{{path}}", get(handlers::list).post(handlers::create))
+        .route(
+            "{{path}}/{id}",
+            get(handlers::get_one).patch(handlers::update).delete(handlers::delete),
+        )
+}

@@ -1,0 +1,10 @@
+{
+  "schema_version": 3,
+  "id": "rust-axum-sqlite",
+  "version": "0.5.0",
+  "features": [
+    "relations",
+    "layered-resources",
+    "custom-routes"
+  ]
+}

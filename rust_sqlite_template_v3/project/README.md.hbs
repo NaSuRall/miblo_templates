@@ -1,0 +1,176 @@
+# {{project_name}}
+
+API Rust avec Axum, SQLx et SQLite, générée par Miblo.
+Le projet fonctionne avec Cargo, indépendamment du CLI Miblo une fois généré.
+
+## Démarrer
+
+SQLite est prêt : `.env` est configuré et `miblo.sqlite` sera créé automatiquement.
+Aucun serveur de base de données à installer.
+
+```sh
+cargo run
+curl http://127.0.0.1:{{port}}/health
+```
+
+`SERVER_ADDRESS` et `SERVER_PORT` configurent l'écoute ; `DATABASE_URL` configure
+la connexion. Les valeurs sont documentées dans `.env.example`. La configuration
+est chargée dans `src/config.rs` ; les migrations sont appliquées au démarrage.
+Ne versionnez pas `.env` ni les fichiers contenant les données de la base.
+
+## Lire le code
+
+Commencez par `src/main.rs`, puis `src/lib.rs`. Chaque modèle est regroupé dans
+son propre dossier. Exemple après avoir créé un modèle User :
+
+```text
+src/
+├── main.rs                 Démarrage du serveur
+├── config.rs               Variables d'environnement
+├── database.rs             Connexion et migrations
+├── lib.rs                  État partagé, /health et assemblage des routes
+├── error.rs                Traduction des erreurs en réponses HTTP
+├── patch.rs                Différence entre champ absent et null dans PATCH
+└── resources/
+    ├── mod.rs              Enregistrement des modèles, géré par Miblo
+    └── user/
+        ├── mod.rs          Adresses et méthodes HTTP du modèle
+        ├── handlers.rs     Lecture des requêtes et réponses JSON
+        ├── model.rs        Structure User renvoyée par l'API
+        ├── requests.rs     CreateUser, UpdateUser, pagination et validation
+        ├── service.rs      Règles métier à personnaliser
+        └── repository.rs   Requêtes SQL et transactions
+migrations/                 Historique SQL à conserver
+```
+
+Une création suit ce chemin :
+`POST /users → handlers::create → service::create → repository::create`.
+La réponse revient par le même chemin. Les fonctions sont ordinaires : aucun
+conteneur d'injection ou trait générique à comprendre avant de modifier l'API.
+
+## Où écrire mes modifications ?
+
+| Besoin | Fichier |
+| --- | --- |
+| Ajouter une règle métier ou un contrôle avant une écriture | `service.rs` |
+| Modifier un filtre, une jointure ou une requête SQL | `repository.rs` |
+| Modifier la validation ou les données reçues | `requests.rs` |
+| Modifier un code de réponse ou des en-têtes | `handlers.rs` |
+| Ajouter un endpoint au modèle | `mod.rs`, puis `handlers.rs` et `service.rs` |
+| Ajouter une route indépendante | `src/lib.rs` |
+| Modifier la connexion à la base | `src/database.rs` |
+
+Exemple, pour un User avec un champ `name: String`, dans `service::create`
+après `request.validate()?` :
+
+```rust
+if request.name.trim().is_empty() {
+    return Err(ApiError::bad_request("Le nom ne peut pas être vide"));
+}
+```
+
+Lors de l'ajout de champs, `service.rs` et `handlers.rs` ne dépendent pas de la
+liste des colonnes : votre logique y reste en place. Miblo fusionne les changements
+nécessaires dans les fichiers du modèle, des requêtes et du SQL ; il s'arrête sur
+un conflit et sauvegarde les fichiers remplacés dans `.miblo/backups/`.
+Le registre `src/resources/mod.rs` est géré par Miblo ; gardez les routes
+personnalisées dans les fichiers du modèle ou dans `src/lib.rs`.
+
+## Ajouter un modèle et l'utiliser
+
+Avec Miblo installé, lancez `miblo` dans ce dossier. `a` ajoute un modèle et ses
+routes ; `m` ajoute des champs ou des relations à un modèle existant ; `b`
+applique les migrations ; `d` affiche le schéma de la base ; `r` lance l'API.
+`x` permet de tester une route, `e` d'ouvrir le fichier dans votre éditeur.
+
+Exemple équivalent en ligne de commande, si User n'existe pas encore :
+
+```sh
+miblo add User 'name:string' 'email:string:unique' --yes
+cargo run
+```
+
+Depuis un autre terminal :
+
+```sh
+curl -X POST http://127.0.0.1:{{port}}/users \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Alice","email":"alice@example.test"}'
+curl 'http://127.0.0.1:{{port}}/users?limit=20&offset=0'
+curl -X PATCH http://127.0.0.1:{{port}}/users/1 \
+  -H 'Content-Type: application/json' -d '{"name":"Alice Martin"}'
+```
+
+Chaque modèle expose GET et POST sur la collection, puis GET, PATCH et DELETE
+sur `/{id}`. Les créations renvoient 201, les suppressions 204, les éléments
+absents 404 et les doublons uniques 409. Une référence inexistante renvoie 400.
+PATCH distingue un champ absent d'une valeur `null` ; seuls les champs facultatifs
+acceptent `null`. Les champs JSON inconnus sont refusés. La pagination accepte
+`limit` de 1 à 100 et un `offset` positif ou nul.
+
+## Faire évoluer les données
+
+Arrêtez l'API, puis ajoutez des champs depuis `m`, ou par exemple :
+
+```sh
+miblo edit User 'nickname:string?' --dry-run
+miblo edit User 'nickname:string?' --yes
+miblo db migrate
+cargo run
+```
+
+Les anciennes lignes sont conservées ; les nouveaux champs contiennent `NULL`.
+Ne réécrivez pas une migration déjà appliquée. Pour renommer ou supprimer une
+colonne, préparez une nouvelle migration SQL et adaptez explicitement le code.
+Les sauvegardes de fichiers Miblo ne remplacent pas une sauvegarde de la base.
+
+Chaque modèle a une clé primaire `id`. Les relations portent un identifiant
+comme `group_id`, avec une contrainte SQL et un index. Créez la ligne parente
+avant de fournir son ID. RESTRICT bloque sa suppression, CASCADE supprime aussi
+les lignes liées, SET NULL conserve ces lignes et vide leur référence. Les
+réponses n'incluent pas automatiquement les objets liés : ajoutez une jointure
+au repository et une réponse adaptée si votre métier le demande.
+
+## Vérifier le projet
+
+```sh
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test
+```
+
+Les tests générés vérifient /health sans connexion réelle, la sémantique de PATCH
+et la validation des requêtes. Ajoutez vos tests métier près de `service.rs` et
+vos tests HTTP dans `tests/`.
+
+Les champs privés sont masqués dans les réponses, mais ne sont ni chiffrés ni
+hachés. L'authentification et les autorisations restent à implémenter selon votre
+application.
+
+## Ajouter une route personnalisée
+
+Dans Miblo, appuyez sur **g**, ou choisissez « Créer une route » dans les actions.
+Choisissez une méthode, un chemin (par exemple `/users/{id}/activate`), un nom
+et éventuellement un corps JSON. La route peut être associée à un modèle existant.
+
+```sh
+miblo route add active_users --method GET --path /users/active --resource User --yes
+```
+
+Chaque route possède un dossier `src/resources/custom_routes/<nom>/` :
+- `mod.rs` : branchement du chemin et de la méthode ;
+- `handlers.rs` : extraction HTTP et réponse JSON ;
+- `requests.rs` : paramètres du chemin et filtres de recherche à typer ;
+- `service.rs` : fonction métier à compléter dans votre éditeur.
+
+La fonction métier répond **501 Not Implemented** jusqu’à ce que vous l’implémentiez.
+Remplacez `Err(RouteError::NotImplemented)` par votre traitement, puis retournez
+`Ok(serde_json::json!({"ok": true}))`, par exemple. Le pool SQL est disponible ;
+les erreurs SQL peuvent être propagées avec `?`. Aucun changement de table n’est généré.
+
+Redémarrez l’API puis testez la route avec **x**. Remplacez les paramètres du chemin
+par des valeurs concrètes et renseignez le JSON si nécessaire. **e** ouvre le handler
+de la route sélectionnée. Miblo préserve les services et handlers existants.
+Les registres `src/resources/mod.rs` et `custom_routes/mod.rs` restent gérés par Miblo.
+Les doublons sont vérifiés parmi les routes déclarées dans Miblo ; vérifiez vous-même
+les routes que vous branchez manuellement ailleurs.

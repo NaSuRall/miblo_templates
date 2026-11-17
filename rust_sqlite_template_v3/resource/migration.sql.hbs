@@ -1,0 +1,12 @@
+CREATE TABLE `{{table}}` (
+    `id` INTEGER PRIMARY KEY AUTOINCREMENT,
+{{#each fields}}
+    `{{name}}` {{sql_type}}{{#unless nullable}} NOT NULL{{/unless}}{{#if unique}} UNIQUE{{/if}}{{#unless @last}},{{/unless}}
+{{/each}}
+{{#each relations}}
+    , FOREIGN KEY (`{{field}}`) REFERENCES `{{table}}` (`id`) ON DELETE {{on_delete}} ON UPDATE RESTRICT
+{{/each}}
+);
+{{#each relations}}
+CREATE INDEX `{{index}}` ON `{{../table}}` (`{{field}}`);
+{{/each}}

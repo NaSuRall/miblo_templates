@@ -5,13 +5,15 @@ and can be distributed as archives on GitHub Releases or another HTTPS server.
 
 | Directory | Database | Pack version | CLI compatibility |
 | --- | --- | --- | --- |
+| `rust_template_v3/` | MySQL | 0.5.0 | 0.8+ |
+| `rust_sqlite_template_v3/` | SQLite | 0.5.0 | 0.8+ |
 | `rust_template_v2/` | MySQL | 0.4.0 | 0.7+ |
 | `rust_sqlite_template_v2/` | SQLite | 0.4.0 | 0.7+ |
 | `rust_template_v1/` | MySQL | 0.3.0 | 0.5+ |
 | `rust_sqlite_template_v1/` | SQLite | 0.3.0 | 0.5+ |
 
-The current packs use format 2 and declare `relations` and `layered-resources`.
-Format 1 packs are kept unchanged for existing projects. They generate
+The current packs use format 3 and declare `relations`, `layered-resources` and `custom-routes`.
+Format 1 and 2 packs are kept unchanged for existing projects. They generate
 Axum + SQLx CRUD APIs with automatic integer primary keys, optional/required
 foreign keys, indexes and RESTRICT / CASCADE / SET NULL deletion rules.
 The previous MySQL v0.1.0 and SQLite v0.2.0 release assets remain immutable;
@@ -20,7 +22,7 @@ projects pinned to them can still use CLI 0.5 and opt into the newer templates.
 
 ## Use the published release
 
-With Miblo CLI 0.7 installed, no local template checkout is needed:
+With Miblo CLI 0.8 installed, no local template checkout is needed:
 
 ```sh
 miblo new my-api --database sqlite
@@ -29,7 +31,7 @@ miblo new my-api --database sqlite
 
 In the full-screen `miblo` interface, create an API and choose **GitHub Releases**.
 The CLI downloads the matching archive from the
-[v0.4.0 release](https://github.com/NaSuRall/miblo_templates/releases/tag/v0.4.0),
+[v0.5.0 release](https://github.com/NaSuRall/miblo_templates/releases/tag/v0.5.0),
 checks its SHA-256 sidecar and caches it. An existing `MIBLO_TEMPLATE_DIR` selects
 a local pack in the direct CLI; unset it to use the default remote source.
 
@@ -41,8 +43,8 @@ the fields menu, or use `group_id:int:ref=Group` in CLI fields. The target model
 must already exist; optional self references are also supported.
 
 Press **d** to inspect the real database schema and **p** to compare it with the
-declared models. Templates remain separate from the binary; CLI 0.7 is required
-for the format-2 layout. Template releases do not publish the crate.
+declared models. Templates remain separate from the binary; CLI 0.8 is required
+for the format-3 layout. Template releases do not publish the crate.
 
 ## Readable generated applications
 
@@ -63,8 +65,8 @@ are in French, with customization guidance, curl examples and migration commands
 The application runs independently with Cargo after generation.
 
 The new format is explicit so older CLIs reject it instead of silently omitting
-modules. Existing format-1 sources and released assets are unchanged. Miblo 0.7
-can use both formats, including both layouts in a single project after a template
+modules. Existing format-1 sources and released assets are unchanged. Miblo 0.8
+can use all three formats, including both layouts in a single project after a template
 update; it remembers the template for each model.
 
 ## Use locally
@@ -73,7 +75,7 @@ With both repositories next to one another:
 
 ```sh
 cd ../Miblo
-cargo run -- new demo-api --database mysql --template-dir ../miblo_templates/rust_template_v2
+cargo run -- new demo-api --database mysql --template-dir ../miblo_templates/rust_template_v3
 ```
 
 ## Build a release archive
@@ -81,15 +83,15 @@ cargo run -- new demo-api --database mysql --template-dir ../miblo_templates/rus
 ```sh
 python3 scripts/package.py
 # SQLite:
-python3 scripts/package.py --source rust_sqlite_template_v2
+python3 scripts/package.py --source rust_sqlite_template_v3
 ```
 
-The script produces deterministic files under `dist/v0.4.0/`:
+The script produces deterministic files under `dist/v0.5.0/`:
 
 - `rust-axum-mysql.tar.gz`;
 - `rust-axum-mysql.tar.gz.sha256`.
 
-With the SQLite source, it produces `dist/v0.4.0/rust-axum-sqlite.tar.gz`
+With the SQLite source, it produces `dist/v0.5.0/rust-axum-sqlite.tar.gz`
 and `rust-axum-sqlite.tar.gz.sha256` instead.
 
 The archive contains `manifest.json` and the `.hbs` files directly at its root,
@@ -106,7 +108,7 @@ script does not publish anything. Never replace the contents of a published vers
 For a custom HTTP server, keep this layout:
 
 ```text
-v0.4.0/
+v0.5.0/
   rust-axum-mysql.tar.gz
   rust-axum-mysql.tar.gz.sha256
 ```
@@ -142,23 +144,31 @@ From the CLI repository, run:
 cargo build --locked
 python3 scripts/smoke_mysql.py \
   --miblo target/debug/miblo \
-  --templates ../miblo_templates/rust_template_v2
+  --templates ../miblo_templates/rust_template_v3
 ```
 
 The script uses an isolated temporary MySQL instance, tests real HTTP CRUD,
 nullable PATCH, private response fields, validation and addition of resources
 after custom edits and formatting. It needs installed `mysql` and `mysqld`.
 
-After publishing, replace `--templates ../miblo_templates/rust_template_v2` with
+After publishing, replace `--templates ../miblo_templates/rust_template_v3` with
 `--remote` to test the default public download with an initially empty cache,
 then resource addition offline from that cache and the same MySQL CRUD checks.
 
 SQLite can be checked without a database server using the CLI repository's
 `scripts/smoke_sqlite.py --miblo target/debug/miblo --templates
-../miblo_templates/rust_sqlite_template_v2 --target-dir target/sqlite-smoke`.
+../miblo_templates/rust_sqlite_template_v3 --target-dir target/sqlite-smoke`.
 Replace `--templates ...` with `--remote` after publication. The test checks
 automatic setup, tables, CRUD, concurrent updates and persistence across restarts.
 
 Legacy sample connection values have been replaced with placeholders. If real
 credentials from the old files were used elsewhere, replace them there too;
 editing the current sample does not remove values from Git history.
+
+### Routes personnalisées (format 3)
+
+Les packs `rust_template_v3` et `rust_sqlite_template_v3` ajoutent la fonctionnalité
+`custom-routes` pour Miblo 0.8.0. Le dossier `route/` fournit le registre, les erreurs
+et quatre fichiers par route : module, handler HTTP, paramètres et service métier.
+Le service répond 501 jusqu’à son implémentation. Aucun changement SQL n’est généré.
+Les dossiers v1 (0.3.0) et v2 (0.4.0) restent inchangés pour les projets épinglés.

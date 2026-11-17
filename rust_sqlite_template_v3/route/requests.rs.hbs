@@ -1,0 +1,15 @@
+use std::collections::BTreeMap;
+{{#if parameters}}
+use serde::Deserialize;
+
+// Les paramètres du chemin sont des chaînes ; adaptez leurs types si nécessaire.
+#[derive(Debug, Deserialize)]
+pub struct PathParams {
+{{#each parameters}}
+    pub {{this}}: String,
+{{/each}}
+}
+{{/if}}
+
+// Remplacez cet alias par une structure Deserialize pour typer vos filtres.
+pub type QueryParams = BTreeMap<String, String>;

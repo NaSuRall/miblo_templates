@@ -1,0 +1,18 @@
+use crate::resources::custom_routes::error::RouteError;
+use super::requests::QueryParams;
+{{#if parameters}}use super::requests::PathParams;
+{{/if}}
+use serde_json::Value;
+use sqlx::MySqlPool;
+
+// Complétez ici la règle métier. Le pool donne accès à la base de l’API.
+// Retirez les préfixes _ quand vous utilisez les paramètres ; renvoyez Ok(json!(...)).
+// Miblo conserve ce fichier quand vous ajoutez des modèles ou d’autres routes.
+pub async fn {{name}}(
+    _pool: &MySqlPool,
+{{#if parameters}}    _params: PathParams,
+{{/if}}    _query: QueryParams,
+{{#if json_body}}    _body: Value,
+{{/if}}) -> Result<Value, RouteError> {
+    Err(RouteError::NotImplemented)
+}
